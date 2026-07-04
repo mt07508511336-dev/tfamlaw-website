@@ -1,13 +1,12 @@
 """
-Thompson Family Law — Daily Blog Post Generator (static site / GitHub version)
-================================================================================
+Thompson Family Law — Daily Blog Post Generator (OpenAI version)
+==================================================================
 What this does, in plain English:
-  1. Asks Claude to search the web for a genuine, recent Scottish/UK
+  1. Asks OpenAI to search the web for a genuine, recent Scottish/UK
      family or civil law news topic.
   2. Asks it to write an ORIGINAL commentary post in Thompson Family
      Law's voice.
-  3. Creates a new page for that post (e.g. blog-2026-07-04-some-topic.html)
-     using the site's existing design.
+  3. Creates a new page for that post using the site's existing design.
   4. Adds a new card for it at the top of blog.html, and removes the
      oldest card if there are more than 9, to keep the page tidy.
 
@@ -24,7 +23,7 @@ from datetime import date
 
 import requests
 
-ANTHROPIC_API_KEY = os.environ["ANTHROPIC_API_KEY"]
+OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
 REPO_ROOT = os.environ.get("REPO_ROOT", ".")
 
 PROMPT = """You are writing a blog post for Thompson Family Law, a family-run
@@ -56,45 +55,54 @@ def slugify(text):
     return text[:60].rstrip("-")
 
 
+def extract_output_text(data):
+    """Pull the plain text out of an OpenAI Responses API result,
+    regardless of how many tool-call steps came before it."""
+    texts = []
+    for item in data.get("output", []):
+        if item.get("type") == "message":
+            for block in item.get("content", []):
+                if block.get("type") == "output_text":
+                    texts.append(block.get("text", ""))
+    return "\n".join(texts).strip()
+
+
 def generate_post():
     resp = requests.post(
-        "https://api.anthropic.com/v1/messages",
+        "https://api.openai.com/v1/responses",
         headers={
-            "x-api-key": ANTHROPIC_API_KEY,
-            "anthropic-version": "2023-06-01",
-            "content-type": "application/json",
+            "Authorization": f"Bearer {OPENAI_API_KEY}",
+            "Content-Type": "application/json",
         },
         json={
-            "model": "claude-sonnet-4-6",
-            "max_tokens": 2000,
-            "tools": [{"type": "web_search_20250305", "name": "web_search"}],
-            "messages": [{"role": "user", "content": PROMPT}],
+            "model": "gpt-4.1",
+            "tools": [{"type": "web_search_preview"}],
+            "input": PROMPT,
         },
         timeout=120,
     )
     resp.raise_for_status()
     data = resp.json()
 
-    text_parts = [b["text"] for b in data.get("content", []) if b.get("type") == "text"]
-    raw_text = "\n".join(text_parts).strip()
+    raw_text = extract_output_text(data)
     raw_text = raw_text.replace("```json", "").replace("```", "").strip()
 
     try:
         post = json.loads(raw_text)
     except json.JSONDecodeError:
-        print("Could not parse Claude's response as JSON. Raw response was:")
+        print("Could not parse OpenAI's response as JSON. Raw response was:")
         print(raw_text)
         sys.exit(1)
 
     for field in ("title", "meta_description", "summary", "body_html"):
         if field not in post:
-            print(f"Missing '{field}' in Claude's response: {post}")
+            print(f"Missing '{field}' in OpenAI's response: {post}")
             sys.exit(1)
 
     return post
 
 
-def write_post_page(post, slug, date_str):
+def write_post_page(post, slug):
     template_path = os.path.join(REPO_ROOT, "templates", "post_template.html")
     with open(template_path) as f:
         template = f.read()
@@ -114,7 +122,7 @@ def write_post_page(post, slug, date_str):
     print("Wrote post page:", out_path)
 
 
-def update_blog_listing(post, slug, date_str):
+def update_blog_listing(post, slug):
     blog_path = os.path.join(REPO_ROOT, "blog.html")
     with open(blog_path) as f:
         blog_html = f.read()
@@ -137,7 +145,6 @@ def update_blog_listing(post, slug, date_str):
 
     blog_html = blog_html.replace(marker, marker + new_card, 1)
 
-    # Keep only the 9 most recent cards so the page doesn't grow forever
     cards = re.findall(r'      <div class="card">.*?</div>\n\n', blog_html, re.DOTALL)
     if len(cards) > 9:
         for old_card in cards[9:]:
@@ -153,6 +160,6 @@ if __name__ == "__main__":
     article = generate_post()
     slug = f"blog-{today_str}-{slugify(article['title'])}"
     print("Generated title:", article["title"])
-    write_post_page(article, slug, today_str)
-    update_blog_listing(article, slug, today_str)
+    write_post_page(article, slug)
+    update_blog_listing(article, slug)
     print("Done.")
