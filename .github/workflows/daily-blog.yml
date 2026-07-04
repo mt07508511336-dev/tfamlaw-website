@@ -1,0 +1,38 @@
+name: Daily Blog Post
+
+on:
+  schedule:
+    - cron: '0 7 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  post-blog:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out this repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Generate today's blog post
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          REPO_ROOT: ${{ github.workspace }}
+        run: python scripts/generate_post.py
+
+      - name: Commit and push the new post
+        run: |
+          git config user.name "Thompson Family Law Blog Bot"
+          git config user.email "actions@github.com"
+          git add .
+          git diff --quiet --cached || git commit -m "Add daily blog post - $(date +'%Y-%m-%d')"
+          git push
