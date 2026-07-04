@@ -9,6 +9,8 @@ What this does, in plain English:
   3. Creates a new page for that post using the site's existing design.
   4. Adds a new card for it at the top of blog.html, and removes the
      oldest card if there are more than 9, to keep the page tidy.
+  5. Adds the new post's web address to sitemap.xml, so Google finds
+     it faster.
 
 This script only edits files on disk — a separate step in the GitHub
 Action commits and pushes those changes, which is what makes them go
@@ -155,6 +157,28 @@ def update_blog_listing(post, slug):
     print("Updated blog.html listing")
 
 
+def update_sitemap(slug):
+    sitemap_path = os.path.join(REPO_ROOT, "sitemap.xml")
+    with open(sitemap_path) as f:
+        sitemap = f.read()
+
+    new_entry = f'''  <url>
+    <loc>https://www.tfamlaw.co.uk/{slug}.html</loc>
+    <priority>0.6</priority>
+  </url>
+</urlset>'''
+
+    if "</urlset>" not in sitemap:
+        print("Could not find </urlset> in sitemap.xml — skipping sitemap update.")
+        return
+
+    sitemap = sitemap.replace("</urlset>", new_entry, 1)
+
+    with open(sitemap_path, "w") as f:
+        f.write(sitemap)
+    print("Updated sitemap.xml with new post")
+
+
 if __name__ == "__main__":
     today_str = date.today().isoformat()
     article = generate_post()
@@ -162,4 +186,5 @@ if __name__ == "__main__":
     print("Generated title:", article["title"])
     write_post_page(article, slug)
     update_blog_listing(article, slug)
+    update_sitemap(slug)
     print("Done.")
