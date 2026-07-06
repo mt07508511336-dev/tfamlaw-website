@@ -1,4 +1,0 @@
-User-agent: *
-Allow: /
-
-Sitemap: https://www.tfamlaw.co.uk/sitemap.xml
