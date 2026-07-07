@@ -44,4 +44,8 @@
     <loc>https://www.tfamlaw.co.uk/contact-us.html</loc>
     <priority>0.8</priority>
   </url>
+  <url>
+    <loc>https://www.tfamlaw.co.uk/blog-2026-07-07-scottish-government-proposes-reforms-to-cohabitants-rights.html</loc>
+    <priority>0.6</priority>
+  </url>
 </urlset>
