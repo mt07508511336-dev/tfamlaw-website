@@ -187,6 +187,29 @@
   </div>
 </footer>
 
+<script>
+(function() {
+  var blockedDomains = [
+    "mailinator.com", "tempmail.com", "temp-mail.org", "10minutemail.com",
+    "guerrillamail.com", "guerrillamail.info", "throwawaymail.com",
+    "yopmail.com", "fakeinbox.com", "trashmail.com", "sharklasers.com",
+    "getnada.com", "dispostable.com", "maildrop.cc", "mintemail.com",
+    "spamgourmet.com", "mytemp.email", "emailondeck.com", "moakt.com"
+  ];
+
+  var form = document.querySelector('#enquiry-form form');
+  var emailInput = document.getElementById('email');
+
+  form.addEventListener('submit', function(e) {
+    var email = emailInput.value.trim().toLowerCase();
+    var domain = email.split('@')[1];
+    if (domain && blockedDomains.indexOf(domain) !== -1) {
+      e.preventDefault();
+      alert("Please use a permanent email address (not a temporary/disposable one) so we can get back to you.");
+    }
+  });
+})();
+</script>
 <script src="js/main.js"></script>
 </body>
 </html>
