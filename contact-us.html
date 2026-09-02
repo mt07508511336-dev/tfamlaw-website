@@ -93,6 +93,8 @@
           <input type="text" name="email_check">
           <input type="text" name="phone_check">
           <input type="text" name="ip_check">
+          <input type="text" name="phone_warning_overridden">
+          <input type="text" name="browser_info">
         </form>
 
         <div id="thanks-banner" style="display:none; background:#e8f5e9; border:1px solid #4caf50; padding:16px; border-radius:8px; margin-bottom:20px;">
@@ -109,6 +111,8 @@
           <input type="hidden" name="Email check" id="email_check_field" value="">
           <input type="hidden" name="Phone check" id="phone_check_field" value="">
           <input type="hidden" name="IP check" id="ip_check_field" value="">
+          <input type="hidden" name="Phone warning overridden" id="phone_override_field" value="no">
+          <input type="hidden" name="Browser info" id="browser_info_field" value="">
 
           <div class="form-field">
             <label for="name">Full name</label>
@@ -229,6 +233,8 @@
   form.addEventListener('submit', function(e) {
     e.preventDefault();
 
+    document.getElementById('browser_info_field').value = navigator.userAgent;
+
     var email = emailInput.value.trim().toLowerCase();
     var domain = email.split('@')[1];
     if (domain && blockedDomains.indexOf(domain) !== -1) {
@@ -251,6 +257,7 @@
       if (!confirmedShort) {
         return;
       }
+      document.getElementById('phone_override_field').value = 'yes';
     }
 
     submitBtn.disabled = true;
@@ -281,6 +288,7 @@
               submitBtn.textContent = 'Send enquiry';
               return;
             }
+            document.getElementById('phone_override_field').value = 'yes';
           }
         }
 
@@ -291,6 +299,8 @@
           fd.append('email_check', document.getElementById('email_check_field').value);
           fd.append('phone_check', document.getElementById('phone_check_field').value);
           fd.append('ip_check', document.getElementById('ip_check_field').value);
+          fd.append('phone_warning_overridden', document.getElementById('phone_override_field').value);
+          fd.append('browser_info', document.getElementById('browser_info_field').value);
           var logParams = new URLSearchParams();
           fd.forEach(function(value, key) { logParams.append(key, value); });
           fetch('/contact-us.html', {
