@@ -68,10 +68,14 @@
 
         <!--
           HOW THIS FORM WORKS (read me):
-          The form submits to our own checking program (a Netlify function),
-          which verifies the email/phone, looks up the visitor's IP, logs
-          everything, then forwards it on to shelley@tflaw.co.uk (CC
-          michael@tflaw.co.uk) via FormSubmit.
+          When "Send enquiry" is clicked, JavaScript first quietly asks our
+          checking program (a Netlify function) to verify the email/phone
+          and look up the visitor's IP. It fills those results into hidden
+          fields below, logs everything via Netlify's own Forms feature,
+          then lets the browser submit the form for real, straight to
+          FormSubmit, which emails it to shelley@tflaw.co.uk (CC
+          michael@tflaw.co.uk). This two-step approach is needed because
+          FormSubmit blocks submissions that don't come from a real browser.
 
           ONE-TIME SETUP STEP (important):
           The first time this runs, FormSubmit will send Shelley an email
@@ -95,7 +99,16 @@
           <strong>Thanks — your enquiry has been sent.</strong> One of our solicitors will be in touch shortly.
         </div>
 
-        <form id="real-contact-form" action="/.netlify/functions/submit-enquiry" method="POST">
+        <form id="real-contact-form" action="https://formsubmit.co/shelley@tflaw.co.uk" method="POST">
+          <input type="hidden" name="_subject" value="New enquiry from tfamlaw.co.uk">
+          <input type="hidden" name="_captcha" value="false">
+          <input type="hidden" name="_template" value="table">
+          <input type="hidden" name="_cc" value="michael@tflaw.co.uk">
+          <input type="hidden" name="_next" value="https://tfamlaw.co.uk/contact-us.html?sent=true">
+          <input type="hidden" name="Visitor IP" id="visitor_ip_field" value="">
+          <input type="hidden" name="Email check" id="email_check_field" value="">
+          <input type="hidden" name="Phone check" id="phone_check_field" value="">
+          <input type="hidden" name="IP check" id="ip_check_field" value="">
 
           <div class="form-field">
             <label for="name">Full name</label>
@@ -214,12 +227,53 @@
   var emailInput = document.getElementById('email');
 
   form.addEventListener('submit', function(e) {
+    e.preventDefault();
+
     var email = emailInput.value.trim().toLowerCase();
     var domain = email.split('@')[1];
     if (domain && blockedDomains.indexOf(domain) !== -1) {
-      e.preventDefault();
       alert("Please use a permanent email address (not a temporary/disposable one) so we can get back to you.");
+      return;
     }
+
+    var phoneVal = document.getElementById('phone').value;
+    var submitBtn = form.querySelector('button[type="submit"]');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+
+    fetch('/.netlify/functions/submit-enquiry', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email, phone: phoneVal })
+    })
+      .then(function(res) { return res.json(); })
+      .catch(function() { return null; })
+      .then(function(result) {
+        if (result) {
+          document.getElementById('visitor_ip_field').value = result.ip || '';
+          document.getElementById('email_check_field').value = result.emailSummary || '';
+          document.getElementById('phone_check_field').value = result.phoneSummary || '';
+          document.getElementById('ip_check_field').value = result.ipSummary || '';
+        }
+
+        try {
+          var fd = new FormData(form);
+          fd.append('form-name', 'enquiry-log');
+          fd.append('ip', document.getElementById('visitor_ip_field').value);
+          fd.append('email_check', document.getElementById('email_check_field').value);
+          fd.append('phone_check', document.getElementById('phone_check_field').value);
+          fd.append('ip_check', document.getElementById('ip_check_field').value);
+          var logParams = new URLSearchParams();
+          fd.forEach(function(value, key) { logParams.append(key, value); });
+          fetch('/contact-us.html', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: logParams.toString()
+          }).catch(function() {});
+        } catch (err) {}
+
+        form.submit();
+      });
   });
 
   if (new URLSearchParams(window.location.search).get('sent') === 'true') {
