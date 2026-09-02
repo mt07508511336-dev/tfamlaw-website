@@ -70,9 +70,14 @@ exports.handler = async (event) => {
       `${ipResult.security?.is_vpn ? ' [VPN]' : ''}${ipResult.security?.is_proxy ? ' [PROXY]' : ''}${ipResult.security?.is_tor ? ' [TOR]' : ''}`
     : 'could not check';
 
+  // A simple true/false flag the page can act on directly.
+  const phoneLikelyFake = phoneResult
+    ? (!phoneResult.phone_validation?.is_valid || phoneResult.phone_risk?.is_disposable === true)
+    : false;
+
   return {
     statusCode: 200,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ ip, emailSummary, phoneSummary, ipSummary }),
+    body: JSON.stringify({ ip, emailSummary, phoneSummary, ipSummary, phoneLikelyFake }),
   };
 };
