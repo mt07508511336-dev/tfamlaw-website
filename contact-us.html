@@ -68,18 +68,18 @@
 
         <!--
           HOW THIS FORM WORKS (read me):
-          This form sends its data to FormSubmit, a free service that emails
-          submissions straight to info@tflaw.co.uk — no server or coding needed.
+          The form submits to our own checking program (a Netlify function),
+          which verifies the email/phone, looks up the visitor's IP, logs
+          everything, then forwards it on to shelley@tflaw.co.uk (CC
+          michael@tflaw.co.uk) via FormSubmit.
 
           ONE-TIME SETUP STEP (important):
-          The very first time someone submits this form after it goes live,
-          FormSubmit will send an email to info@tflaw.co.uk asking them to
-          click a confirmation link ("Activate Form"). Until that link is
-          clicked, submissions won't arrive. So: once the site is live,
-          submit the form yourself once as a test, then check that inbox
-          and click "Activate Form".
+          The first time this runs, FormSubmit will send Shelley an email
+          asking her to click a confirmation link ("Activate Form"). Until
+          that link is clicked, submissions won't arrive in the inbox
+          (though they'll still be captured in the log either way).
         -->
-        <<form action="/.netlify/functions/submit-enquiry" method="POST">
+        <form action="/.netlify/functions/submit-enquiry" method="POST">
 
           <div class="form-field">
             <label for="name">Full name</label>
