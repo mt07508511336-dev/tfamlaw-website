@@ -71,9 +71,11 @@ exports.handler = async (event) => {
     : 'could not check';
 
   // A simple true/false flag the page can act on directly.
+  // If we couldn't verify the number at all, treat that as suspicious too
+  // (rather than assuming it's fine) - that's what let a 4-digit number through before.
   const phoneLikelyFake = phoneResult
     ? (!phoneResult.phone_validation?.is_valid || phoneResult.phone_risk?.is_disposable === true)
-    : false;
+    : true;
 
   return {
     statusCode: 200,
