@@ -73,15 +73,17 @@
           and look up the visitor's IP. It fills those results into hidden
           fields below, logs everything via Netlify's own Forms feature,
           then lets the browser submit the form for real, straight to
-          FormSubmit, which emails it to shelley@tflaw.co.uk (CC
-          michael@tflaw.co.uk). This two-step approach is needed because
-          FormSubmit blocks submissions that don't come from a real browser.
+          FormSubmit. If the enquirer's name or message mentions "Shelley"
+          (or a common variant), it goes to shelley@tflaw.co.uk; otherwise
+          it goes to info@tflaw.co.uk. Michael is CC'd either way. This
+          two-step approach is needed because FormSubmit blocks submissions
+          that don't come from a real browser.
 
           ONE-TIME SETUP STEP (important):
-          The first time this runs, FormSubmit will send Shelley an email
-          asking her to click a confirmation link ("Activate Form"). Until
-          that link is clicked, submissions won't arrive in the inbox
-          (though they'll still be captured in the log either way).
+          The first time each of those two addresses is used, FormSubmit
+          sends a one-off email asking to click an "Activate Form" link.
+          Until that's clicked for a given address, submissions to it won't
+          arrive in the inbox (though they'll still be captured in the log).
         -->
         <form name="enquiry-log" data-netlify="true" hidden>
           <input type="text" name="name">
@@ -290,6 +292,21 @@
             }
             document.getElementById('phone_override_field').value = 'yes';
           }
+        }
+
+        // Route based on whether "Shelley" (or a common variant) is mentioned
+        // in the enquirer's name or their message - otherwise goes to info@.
+        var shelleyVariants = ['shelley', 'shelly', 'shellie', 'shely'];
+        function mentionsShelley(text) {
+          var lower = (text || '').toLowerCase();
+          return shelleyVariants.some(function(v) { return lower.indexOf(v) !== -1; });
+        }
+        var nameVal = document.getElementById('name').value;
+        var messageVal = document.getElementById('message').value;
+        if (mentionsShelley(nameVal) || mentionsShelley(messageVal)) {
+          form.action = 'https://formsubmit.co/shelley@tflaw.co.uk';
+        } else {
+          form.action = 'https://formsubmit.co/info@tflaw.co.uk';
         }
 
         try {
