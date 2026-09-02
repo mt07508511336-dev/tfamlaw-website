@@ -77,9 +77,6 @@
           michael@tflaw.co.uk). This two-step approach is needed because
           FormSubmit blocks submissions that don't come from a real browser.
 
-          If the phone number looks fake/disposable, the visitor sees a
-          confirmation prompt before it's sent - see the script below.
-
           ONE-TIME SETUP STEP (important):
           The first time this runs, FormSubmit will send Shelley an email
           asking her to click a confirmation link ("Activate Form"). Until
@@ -241,6 +238,21 @@
 
     var phoneVal = document.getElementById('phone').value;
     var submitBtn = form.querySelector('button[type="submit"]');
+
+    // Quick instant check, before even asking the checking service - catches
+    // obviously too-short numbers (e.g. a handful of random digits) straight away.
+    var digitsOnly = phoneVal.replace(/\D/g, '');
+    if (digitsOnly.length < 9) {
+      var confirmedShort = window.confirm(
+        "The phone number you entered looks too short to be a real UK number. " +
+        "We will investigate the source number if this submission turns out to be abusive. " +
+        "Click OK to confirm this number is correct, or Cancel to go back and check it."
+      );
+      if (!confirmedShort) {
+        return;
+      }
+    }
+
     submitBtn.disabled = true;
     submitBtn.textContent = 'Sending...';
 
