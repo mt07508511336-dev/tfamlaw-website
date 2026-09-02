@@ -77,6 +77,9 @@
           michael@tflaw.co.uk). This two-step approach is needed because
           FormSubmit blocks submissions that don't come from a real browser.
 
+          If the phone number looks fake/disposable, the visitor sees a
+          confirmation prompt before it's sent - see the script below.
+
           ONE-TIME SETUP STEP (important):
           The first time this runs, FormSubmit will send Shelley an email
           asking her to click a confirmation link ("Activate Form"). Until
@@ -254,6 +257,19 @@
           document.getElementById('email_check_field').value = result.emailSummary || '';
           document.getElementById('phone_check_field').value = result.phoneSummary || '';
           document.getElementById('ip_check_field').value = result.ipSummary || '';
+
+          if (result.phoneLikelyFake) {
+            var confirmed = window.confirm(
+              "The phone number you entered doesn't look like a valid UK number. " +
+              "We will investigate the source number if this submission turns out to be abusive. " +
+              "Click OK to confirm this number is correct, or Cancel to go back and check it."
+            );
+            if (!confirmed) {
+              submitBtn.disabled = false;
+              submitBtn.textContent = 'Send enquiry';
+              return;
+            }
+          }
         }
 
         try {
