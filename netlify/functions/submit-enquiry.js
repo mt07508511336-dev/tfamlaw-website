@@ -1,3 +1,4 @@
+// Redeploy trigger: refreshing environment variables
 // This runs quietly the moment someone clicks "Send enquiry" - it checks the
 // email, phone, and visitor IP, and hands the results back to the browser.
 // The browser then does the actual sending itself (see contact-us.html),
