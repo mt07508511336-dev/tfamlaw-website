@@ -79,7 +79,23 @@
           that link is clicked, submissions won't arrive in the inbox
           (though they'll still be captured in the log either way).
         -->
-        <form action="/.netlify/functions/submit-enquiry" method="POST">
+        <form name="enquiry-log" data-netlify="true" hidden>
+          <input type="text" name="name">
+          <input type="email" name="email">
+          <input type="tel" name="phone">
+          <input type="text" name="service">
+          <input type="text" name="message">
+          <input type="text" name="ip">
+          <input type="text" name="email_check">
+          <input type="text" name="phone_check">
+          <input type="text" name="ip_check">
+        </form>
+
+        <div id="thanks-banner" style="display:none; background:#e8f5e9; border:1px solid #4caf50; padding:16px; border-radius:8px; margin-bottom:20px;">
+          <strong>Thanks — your enquiry has been sent.</strong> One of our solicitors will be in touch shortly.
+        </div>
+
+        <form id="real-contact-form" action="/.netlify/functions/submit-enquiry" method="POST">
 
           <div class="form-field">
             <label for="name">Full name</label>
@@ -194,7 +210,7 @@
     "spamgourmet.com", "mytemp.email", "emailondeck.com", "moakt.com"
   ];
 
-  var form = document.querySelector('#enquiry-form form');
+  var form = document.getElementById('real-contact-form');
   var emailInput = document.getElementById('email');
 
   form.addEventListener('submit', function(e) {
@@ -205,6 +221,10 @@
       alert("Please use a permanent email address (not a temporary/disposable one) so we can get back to you.");
     }
   });
+
+  if (new URLSearchParams(window.location.search).get('sent') === 'true') {
+    document.getElementById('thanks-banner').style.display = 'block';
+  }
 })();
 </script>
 <script src="js/main.js"></script>
