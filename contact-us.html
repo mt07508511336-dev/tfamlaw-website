@@ -79,10 +79,7 @@
           submit the form yourself once as a test, then check that inbox
           and click "Activate Form".
         -->
-        <form action="https://formsubmit.co/info@tflaw.co.uk" method="POST">
-          <input type="hidden" name="_subject" value="New enquiry from tfamlaw.co.uk">
-          <input type="hidden" name="_captcha" value="false">
-          <input type="hidden" name="_template" value="table">
+        <<form action="/.netlify/functions/submit-enquiry" method="POST">
 
           <div class="form-field">
             <label for="name">Full name</label>
