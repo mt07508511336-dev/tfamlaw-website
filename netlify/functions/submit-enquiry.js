@@ -1,6 +1,6 @@
 // This runs quietly on Netlify's servers whenever someone submits the contact form.
-// It checks the email and phone, looks up the visitor's IP, saves a permanent
-// record, then forwards everything (plus the checks) on to Shelley and Michael.
+// It checks the email and phone, looks up the visitor's IP, saves a record via
+// Netlify's own Forms feature, then forwards everything to Shelley (CC Michael).
 
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
@@ -14,7 +14,6 @@ exports.handler = async (event) => {
   const service = params.get('service') || '';
   const message = params.get('message') || '';
 
-  // Netlify tells us the visitor's real IP address here - can't be faked by the visitor.
   const ip = event.headers['x-nf-client-connection-ip'] || 'unknown';
 
   const EMAIL_KEY = process.env.ABSTRACT_EMAIL_API_KEY;
@@ -48,18 +47,24 @@ exports.handler = async (event) => {
       `${ipResult.security?.is_vpn ? ' [VPN]' : ''}${ipResult.security?.is_proxy ? ' [PROXY]' : ''}${ipResult.security?.is_tor ? ' [TOR]' : ''}`
     : 'could not check';
 
+  // Log it via Netlify's own built-in Forms feature (viewable in the Netlify dashboard,
+  // and it records the submitter's IP automatically too, as a backup to our own check).
   try {
-    const { getStore } = require('@netlify/blobs');
-    const store = getStore('enquiry-log');
-    await store.setJSON(`entry-${Date.now()}`, {
-      timestamp: new Date().toISOString(),
+    const logBody = new URLSearchParams({
+      'form-name': 'enquiry-log',
       name, email, phone, service, message,
-      ip, emailSummary, phoneSummary, ipSummary,
+      ip, email_check: emailSummary, phone_check: phoneSummary, ip_check: ipSummary,
+    });
+    await fetch('https://tfamlaw.co.uk/contact-us.html', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: logBody.toString(),
     });
   } catch (err) {
-    console.error('Logging failed:', err);
+    console.error('Logging to Netlify Forms failed:', err);
   }
 
+  // Forward the enquiry, with the checks added, to Shelley (CC Michael) via FormSubmit.
   const forwardBody = new URLSearchParams({
     name, email, phone, service, message,
     'Visitor IP': ip,
