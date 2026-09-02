@@ -48,7 +48,7 @@ exports.handler = async (event) => {
 
   const [emailResult, phoneResult, ipResult] = await Promise.all([
     checkOne('EMAIL', `https://emailreputation.abstractapi.com/v1/?api_key=${EMAIL_KEY}&email=${encodeURIComponent(email)}`),
-    checkOne('PHONE', `https://phoneintelligence.abstractapi.com/v1/?api_key=${PHONE_KEY}&phone=${encodeURIComponent(phone)}`),
+    checkOne('PHONE', `https://phoneintelligence.abstractapi.com/v1/?api_key=${PHONE_KEY}&phone=${encodeURIComponent(phone)}&country=GB`),
     checkOne('IP', `https://ip-intelligence.abstractapi.com/v1/?api_key=${IP_KEY}&ip_address=${encodeURIComponent(ip)}`),
   ]);
 
