@@ -3,6 +3,25 @@
 // The browser then does the actual sending itself (see contact-us.html),
 // because FormSubmit blocks requests that don't come from a real browser.
 
+async function checkOne(label, url) {
+  try {
+    const res = await fetch(url);
+    const text = await res.text();
+    console.log(`${label} status:`, res.status);
+    console.log(`${label} body:`, text.slice(0, 500));
+    if (!res.ok) return null;
+    try {
+      return JSON.parse(text);
+    } catch (e) {
+      console.log(`${label} body was not valid JSON`);
+      return null;
+    }
+  } catch (err) {
+    console.log(`${label} network error:`, err.message);
+    return null;
+  }
+}
+
 exports.handler = async (event) => {
   if (event.httpMethod !== 'POST') {
     return { statusCode: 405, body: 'Method Not Allowed' };
@@ -24,13 +43,12 @@ exports.handler = async (event) => {
   const PHONE_KEY = process.env.ABSTRACT_PHONE_API_KEY;
   const IP_KEY = process.env.ABSTRACT_IP_API_KEY;
 
+  console.log('Key presence - email:', !!EMAIL_KEY, 'phone:', !!PHONE_KEY, 'ip:', !!IP_KEY);
+
   const [emailResult, phoneResult, ipResult] = await Promise.all([
-    fetch(`https://emailreputation.abstractapi.com/v1/?api_key=${EMAIL_KEY}&email=${encodeURIComponent(email)}`)
-      .then(r => r.json()).catch(() => null),
-    fetch(`https://phoneintelligence.abstractapi.com/v1/?api_key=${PHONE_KEY}&phone=${encodeURIComponent(phone)}`)
-      .then(r => r.json()).catch(() => null),
-    fetch(`https://ip-intelligence.abstractapi.com/v1/?api_key=${IP_KEY}&ip_address=${encodeURIComponent(ip)}`)
-      .then(r => r.json()).catch(() => null),
+    checkOne('EMAIL', `https://emailreputation.abstractapi.com/v1/?api_key=${EMAIL_KEY}&email=${encodeURIComponent(email)}`),
+    checkOne('PHONE', `https://phoneintelligence.abstractapi.com/v1/?api_key=${PHONE_KEY}&phone=${encodeURIComponent(phone)}`),
+    checkOne('IP', `https://ip-intelligence.abstractapi.com/v1/?api_key=${IP_KEY}&ip_address=${encodeURIComponent(ip)}`),
   ]);
 
   const emailSummary = emailResult
