@@ -1,5 +1,5 @@
 // Password-protected page showing every auto-reply decision (newest first).
-// Open: https://tfamlaw.co.uk/.netlify/functions/auto-reply-log?key=YOUR_PASSWORD
+// Open: https://tfamlaw.co.uk/.netlify/functions/auto-reply-log and type the password.
 // The password is the Netlify setting AUTO_REPLY_LOG_PASSWORD.
 
 const { getStore, connectLambda } = require('@netlify/blobs');
@@ -11,8 +11,19 @@ function esc(s) {
 exports.handler = async (event) => {
   connectLambda(event); // lets this function use Netlify's built-in storage
   const pass = process.env.AUTO_REPLY_LOG_PASSWORD;
-  if (!pass || (event.queryStringParameters || {}).key !== pass) {
-    return { statusCode: 401, body: 'Not authorised' };
+  let given = (event.queryStringParameters || {}).key;
+  if (event.httpMethod === 'POST') {
+    const raw = event.isBase64Encoded ? Buffer.from(event.body || '', 'base64').toString() : (event.body || '');
+    given = new URLSearchParams(raw).get('password');
+  }
+  if (!pass || given !== pass) {
+    const wrong = given ? '<p style="color:#a33">Wrong password - try again.</p>' : '';
+    const form = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Auto-reply log</title>
+<style>body{font-family:Arial,sans-serif;margin:40px auto;max-width:360px;padding:0 16px}input,button{font-size:16px;padding:8px;width:100%;box-sizing:border-box;margin-top:8px}button{background:#354d91;color:#fff;border:0;cursor:pointer}</style>
+<h2>Website auto-reply log</h2>${wrong}
+<form method="POST"><label>Password<input type="password" name="password" autofocus></label><button type="submit">View log</button></form>`;
+    return { statusCode: given ? 401 : 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }, body: form };
   }
   const store = getStore('auto-reply');
   const { blobs } = await store.list({ prefix: 'log/' });
@@ -32,6 +43,7 @@ exports.handler = async (event) => {
 <style>body{font-family:Arial,sans-serif;margin:16px}table{border-collapse:collapse;width:100%}td,th{border:1px solid #ddd;padding:6px;text-align:left;vertical-align:top;font-size:14px}th{background:#354d91;color:#fff}</style>
 <h2>Website auto-reply log</h2><p>Mode: <strong>${(process.env.AUTO_REPLY_MODE || '').toLowerCase() === 'live' ? 'LIVE' : 'TEST'}</strong> &middot; last ${keys.length} enquiries</p>
 <table><tr><th>When (UTC)</th><th>Who</th><th>Type</th><th>Result</th><th>Why</th></tr>${tr}</table>`;
-  return { statusCode: 200, headers: { 'Content-Type': 'text/html; charset=utf-8' }, body: html };
+  return { statusCode: 200, headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }, body: html };
 };
+
 
