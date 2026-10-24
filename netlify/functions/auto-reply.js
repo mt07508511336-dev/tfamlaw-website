@@ -14,7 +14,7 @@
 //        - contact / residence, or
 //        - unmarried couples splitting property
 //      and nothing is flagged, it emails the legal aid links from
-//      info@tflaw.co.uk. Everything else gets no auto-reply, so staff deal
+//      forms@tflaw.co.uk (replies go to info@tflaw.co.uk). Everything else gets no auto-reply, so staff deal
 //      with it as they do now.
 //   4. Never replies to the same email address twice in 30 days, and limits
 //      each visitor (IP address) to 3 auto-replies a day, to stop misuse.
@@ -28,9 +28,10 @@ const { getStore, connectLambda } = require('@netlify/blobs');
 const { decide } = require('../lib/auto-reply-rules');
 const { buildEmail } = require('../lib/auto-reply-email');
 
-const FROM_MAILBOX = process.env.AUTO_REPLY_FROM || 'info@tflaw.co.uk';
+const FROM_MAILBOX = process.env.AUTO_REPLY_FROM || 'forms@tflaw.co.uk'; // info@ is an alias, not a mailbox
+const REPLY_TO = process.env.AUTO_REPLY_REPLY_TO || 'info@tflaw.co.uk'; // client replies go here
 const TEST_TO = process.env.AUTO_REPLY_TEST_TO || 'info@tflaw.co.uk';
-const CC = process.env.AUTO_REPLY_CC || 'forms@tflaw.co.uk'; // hidden copy (BCC) on every auto-reply
+const CC = process.env.AUTO_REPLY_CC || ''; // optional hidden copy (BCC); forms@ already keeps one in Sent Items
 const LIVE = (process.env.AUTO_REPLY_MODE || '').toLowerCase() === 'live';
 const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
 
@@ -118,8 +119,9 @@ async function sendEmail(to, email) {
         body: { contentType: 'HTML', content: email.html },
         toRecipients: [{ emailAddress: { address: to } }],
         bccRecipients: CC ? [{ emailAddress: { address: CC } }] : [], // hidden copy
+        replyTo: [{ emailAddress: { address: REPLY_TO } }],
       },
-      saveToSentItems: true, // so staff can see it in info@'s Sent Items
+      saveToSentItems: true, // so staff can see it in forms@'s Sent Items
     }),
   });
   if (!res.ok) throw new Error(`Email send failed ${res.status}: ${(await res.text()).slice(0, 300)}`);
@@ -186,4 +188,5 @@ exports.handler = async (event) => {
     return json(200, { sent: false, reason: 'error' });
   }
 };
+
 
