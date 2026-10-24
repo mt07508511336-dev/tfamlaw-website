@@ -17,16 +17,36 @@ Action commits and pushes those changes, which is what makes them go
 live on Netlify.
 """
 
+import glob
+import html as html_lib
 import json
 import os
 import re
 import sys
 from datetime import date
+from difflib import SequenceMatcher
 
 import requests
 
-OPENAI_API_KEY = os.environ["OPENAI_API_KEY"]
+OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY", "")
 REPO_ROOT = os.environ.get("REPO_ROOT", ".")
+
+# How many past headlines to show the AI so it avoids repeating them.
+RECENT_POSTS_TO_CHECK = 60
+# How many times to ask for a fresh topic before giving up for the day.
+MAX_ATTEMPTS = 3
+
+# Common words ignored when comparing headlines, so that two headlines
+# only count as "the same" if they share the words that matter.
+STOP_WORDS = {
+    "a", "an", "the", "and", "or", "of", "to", "in", "on", "for", "with",
+    "by", "at", "from", "as", "is", "are", "be", "its", "it", "what",
+    "you", "your", "need", "know", "new", "this", "that", "into", "over",
+    "scottish", "scotland", "scots", "uk", "government", "court",
+    "proposes", "proposed", "announces", "seeks", "launches", "step",
+    "towards", "how", "why", "means", "understanding", "set", "law", "laws",
+    "legal",
+}
 
 PROMPT = """You are writing a blog post for Thompson Family Law, a family-run
 Scottish solicitors' firm with offices in Glasgow (Bishopbriggs), Edinburgh,
@@ -50,6 +70,60 @@ fields:
   "body_html": "the full post as HTML paragraphs, e.g. <p>...</p><p>...</p>. Do not include the title as a heading inside this - just the paragraphs."
 }"""
 
+AVOID_REPEATS = """
+
+IMPORTANT - AVOID REPEATS: We have ALREADY published posts with the
+headlines listed below. Do NOT write about any of these stories or topics
+again, even from a different angle or with a reworded headline. Pick a
+clearly DIFFERENT news story or development. If the big story of the week
+is already covered below, choose a smaller, different story instead.
+
+Already published:
+{titles}"""
+
+
+def get_recent_titles(limit=RECENT_POSTS_TO_CHECK):
+    """Read the headlines of the most recent published posts."""
+    files = sorted(glob.glob(os.path.join(REPO_ROOT, "blog-*.html")), reverse=True)
+    titles = []
+    for path in files[:limit]:
+        with open(path, encoding="utf-8") as f:
+            match = re.search(r"<h1[^>]*>(.*?)</h1>", f.read(), re.DOTALL)
+        if match:
+            titles.append(html_lib.unescape(match.group(1)).strip())
+    return titles
+
+
+def key_words(title):
+    words = re.findall(r"[a-z0-9]+", title.lower())
+    out = set()
+    for w in words:
+        if w in STOP_WORDS or len(w) <= 2:
+            continue
+        # Treat "increase", "increases", "increased" etc. as the same word.
+        for ending in ("ing", "ed", "es", "s"):
+            if w.endswith(ending) and len(w) - len(ending) >= 4:
+                w = w[: -len(ending)]
+                break
+        out.add(w.rstrip("e"))
+    return out
+
+
+def find_similar(new_title, old_titles):
+    """Return the old headline the new one is too close to, or None."""
+    new_norm = " ".join(re.findall(r"[a-z0-9]+", new_title.lower()))
+    new_words = key_words(new_title)
+    for old in old_titles:
+        old_norm = " ".join(re.findall(r"[a-z0-9]+", old.lower()))
+        if SequenceMatcher(None, new_norm, old_norm).ratio() >= 0.7:
+            return old
+        old_words = key_words(old)
+        if new_words and old_words:
+            overlap = len(new_words & old_words) / min(len(new_words), len(old_words))
+            if overlap >= 0.6 and len(new_words & old_words) >= 2:
+                return old
+    return None
+
 
 def slugify(text):
     text = text.lower()
@@ -69,7 +143,10 @@ def extract_output_text(data):
     return "\n".join(texts).strip()
 
 
-def generate_post():
+def generate_post(avoid_titles):
+    prompt = PROMPT
+    if avoid_titles:
+        prompt += AVOID_REPEATS.format(titles="\n".join(f"- {t}" for t in avoid_titles))
     resp = requests.post(
         "https://api.openai.com/v1/responses",
         headers={
@@ -79,7 +156,7 @@ def generate_post():
         json={
             "model": "gpt-4.1",
             "tools": [{"type": "web_search_preview"}],
-            "input": PROMPT,
+            "input": prompt,
         },
         timeout=120,
     )
@@ -181,7 +258,26 @@ def update_sitemap(slug):
 
 if __name__ == "__main__":
     today_str = date.today().isoformat()
-    article = generate_post()
+    recent_titles = get_recent_titles()
+    print(f"Checking against {len(recent_titles)} recent headlines")
+
+    article = None
+    avoid = list(recent_titles)
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        candidate = generate_post(avoid)
+        clash = find_similar(candidate["title"], recent_titles)
+        if not clash:
+            article = candidate
+            break
+        print(f"Attempt {attempt}: '{candidate['title']}' is too close to "
+              f"'{clash}' - asking for a different topic")
+        avoid.insert(0, candidate["title"])
+
+    if article is None:
+        print("Could not find a fresh topic today - skipping rather than "
+              "publishing a repeat. No changes made.")
+        sys.exit(0)
+
     slug = f"blog-{today_str}-{slugify(article['title'])}"
     print("Generated title:", article["title"])
     write_post_page(article, slug)
