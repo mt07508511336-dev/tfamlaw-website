@@ -327,6 +327,24 @@
           }).catch(function() {});
         } catch (err) {}
 
+        // AI auto-reply: quietly asks our auto-reply function to decide whether
+        // to email the legal aid links (see netlify/functions/auto-reply.js).
+        // "keepalive" lets it finish even though the page moves on, and it
+        // never holds up or blocks the normal enquiry email below.
+        try {
+          fetch('/.netlify/functions/auto-reply', {
+            method: 'POST',
+            keepalive: true,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              name: nameVal,
+              email: email,
+              service: document.getElementById('service').value,
+              message: messageVal.slice(0, 8000)
+            })
+          }).catch(function() {});
+        } catch (err) {}
+
         form.submit();
       });
   });
@@ -339,3 +357,4 @@
 <script src="js/main.js"></script>
 </body>
 </html>
+
